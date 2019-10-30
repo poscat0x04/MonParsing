@@ -7,14 +7,25 @@ module Parser
   ( Parser
   , sat
   , runParser
+  , item
   , word
+  , char
   , alphanum
+  , string
   , letter
   , many
   , nat
   , int
   , ints
+  , symbol
   , expr
+  , seqParse
+  , spaces
+  , comment
+  , mlcomment
+  , junk
+  , parse
+  , token
   )
 where
 
@@ -25,7 +36,7 @@ import           Control.Applicative            ( Alternative
 import           Control.Monad
 import           Data.Char
 
-newtype Parser a = Parser { runParser :: String -> [(a, String)] }
+newtype Parser a = Parser { runParser :: String -> Maybe (a, String) }
 
 instance Functor Parser where
   fmap :: (a -> b) -> Parser a -> Parser b
@@ -56,16 +67,16 @@ instance Monad Parser where
 
 instance Alternative Parser where
   empty :: Parser a
-  empty = Parser (const [])
+  empty = Parser (const mzero)
   (<|>) :: Parser a -> Parser a -> Parser a
-  p1 <|> p2 = Parser (\inp -> runParser p1 inp ++ runParser p2 inp)
+  p1 <|> p2 = Parser (\inp -> runParser p1 inp <|> runParser p2 inp)
 
 instance MonadPlus Parser
 
 item :: Parser Char
 item = Parser
   (\case
-    []       -> []
+    []       -> mzero
     (x : xs) -> return (x, xs)
   )
 
@@ -77,6 +88,10 @@ sat pred = do
 
 char :: Char -> Parser Char
 char ch = sat (== ch)
+
+string :: String -> Parser String
+string ""         = pure ""
+string s@(x : xs) = char x >> string xs >> pure s
 
 digit :: Parser Char
 digit = sat isDigit
@@ -152,23 +167,86 @@ bracket leading p ending = do
   _ <- ending
   return c
 
-expr :: Parser Int
-expr =
+symbol :: String -> Parser a -> Parser a
+symbol ""       p = p
+symbol (x : xs) p = do
+  _ <- char x
+  symbol xs p
+
+chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
+p `chainl1` op = do
+  x   <- p
+  fys <- many $ do
+    f <- op
+    y <- p
+    return (f, y)
+  return $ foldl (\x (f, y) -> x `f` y) x fys
+
+chainr1 :: Parser a -> Parser (a -> a -> a) -> Parser a
+p `chainr1` op = do
+  x <- p
   do
-      x <- factor
-      f <- addop
-      y <- expr
+      f <- op
+      y <- p `chainr1` op
       return (f x y)
-    <|> factor
+    <|> pure x
+
+expr :: Parser Int
+expr = term `chainl1` addop
+
+term :: Parser Int
+term = factor `chainr1` expop
 
 addop :: Parser (Int -> Int -> Int)
-addop =
-  do
-      _ <- char '+'
-      return (+)
-    <|> do
-          _ <- char '-'
-          return (-)
+addop = ops [(char '-', (-)), (char '+', (+))]
+
+expop :: Parser (Int -> Int -> Int)
+expop = ops [(char '^', (^))]
 
 factor :: Parser Int
 factor = nat <|> bracket (char '(') expr (char ')')
+
+ops :: [(Parser a, b)] -> Parser b
+ops = foldr1 (<|>) . fmap (\(p, r) -> p >> return r)
+
+seqParse :: [Parser a] -> Parser [a]
+seqParse l = do
+  xs <- sequence l
+  return $ reverse xs
+
+spaces :: Parser ()
+spaces = many1 (sat isSpace) >> pure ()
+
+comment :: Parser ()
+comment = do
+  _ <- string "--"
+  _ <- many (sat (/= '\n'))
+  return ()
+
+reverseP :: Parser a -> Parser ()
+reverseP p = Parser
+  (\inp -> case runParser p inp of
+    Nothing -> pure ((), inp)
+    _       -> mzero
+  )
+
+notCommentEnd :: Parser ()
+notCommentEnd = reverseP (string "-}") >> item >> pure ()
+
+commentContent :: Parser ()
+commentContent = ((mlcomment <|> notCommentEnd) >> commentContent) <|> pure ()
+
+mlcomment :: Parser ()
+mlcomment = string "{-" >> commentContent >> string "-}" >> pure ()
+
+junk :: Parser ()
+junk = many (spaces <|> comment <|> mlcomment) >> pure ()
+
+parse :: Parser a -> Parser a
+parse p = junk >> p
+
+token :: Parser a -> Parser a
+token p = do
+  x <- p
+  _ <- junk
+  return x
