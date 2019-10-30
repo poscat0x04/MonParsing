@@ -14,7 +14,9 @@ module Parser
   , string
   , letter
   , many
+  , ident
   , nat
+  , chainl1
   , int
   , ints
   , symbol
@@ -26,6 +28,8 @@ module Parser
   , junk
   , parse
   , token
+  , identifier
+  , bracket
   )
 where
 
@@ -131,6 +135,12 @@ many1 p = do
   xs <- many p
   return (x : xs)
 
+ident :: Parser String
+ident = do
+  x <- lower
+  xs <- many alphanum
+  return (x:xs)
+
 nat :: Parser Int
 nat = do
   x <- many1 digit
@@ -166,12 +176,6 @@ bracket leading p ending = do
   c <- p
   _ <- ending
   return c
-
-symbol :: String -> Parser a -> Parser a
-symbol ""       p = p
-symbol (x : xs) p = do
-  _ <- char x
-  symbol xs p
 
 chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
 p `chainl1` op = do
@@ -249,4 +253,19 @@ token :: Parser a -> Parser a
 token p = do
   x <- p
   _ <- junk
+  return x
+
+natural :: Parser Int
+natural = token nat
+
+integer :: Parser Int
+integer = token int
+
+symbol :: String -> Parser String
+symbol xs = token (string xs)
+
+identifier :: [String] -> Parser String
+identifier ban = token $ do
+  x <- ident
+  guard $ x `notElem` ban
   return x
