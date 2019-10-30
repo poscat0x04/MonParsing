@@ -3,35 +3,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE MonadComprehensions #-}
 
-module Parser
-  ( Parser
-  , sat
-  , runParser
-  , item
-  , word
-  , char
-  , alphanum
-  , string
-  , letter
-  , many
-  , ident
-  , nat
-  , chainl1
-  , int
-  , ints
-  , symbol
-  , expr
-  , seqParse
-  , spaces
-  , comment
-  , mlcomment
-  , junk
-  , parse
-  , token
-  , identifier
-  , bracket
-  )
-where
+module Parser where
 
 import           Control.Applicative            ( Alternative
                                                 , empty
