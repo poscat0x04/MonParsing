@@ -5,6 +5,7 @@ module Main where
 import           Parser
 import           Data.Char
 import qualified Lambda
+import qualified Semantics
 
 main :: IO ()
 main = do
@@ -17,7 +18,9 @@ main = do
     testParser expr      "1+2^3^3"
     testParser (parse nat) "  --{--{{--}123-{-}-}-}\n123"
     testParser ident "a1234"
-    testParser Lambda.expr "\\x -> x"
+    testLambda
     where testParser p s = print $ runParser p s
+          testLambda = print $ case runParser Lambda.expr "(\\x -> x) (\\x -> x)" of
+                                Just (exp, _) -> Semantics.eval exp
 
 seqchar = sequence [char '1', char '2', char '3']
