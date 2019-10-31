@@ -9,6 +9,7 @@ import qualified Semantics
 
 main :: IO ()
 main = do
+    {-
     testParser expr                          "1+2-3-4"
     testParser expr                          "1+2-(3-4)"
     testParser (seqParse [item, item, item]) "123"
@@ -19,15 +20,14 @@ main = do
     testParser (parse nat) "  --{--{{--}123-{-}-}-}\n123"
     testParser ident       "a1234"
     testLambda
+    -}
     print
         $ Semantics.run
-              "--test\n\
-              \(\\x -> x x) (\\x -> x);\n\
-              \let x = (\\x -> x) in x;"
-  where
-    testParser p s = print $ runParser p s
-    testLambda =
-        print $ case runParser Lambda.expr "(\\x -> x x) (\\x -> x)" of
-            Just (exp, _) -> Semantics.eval exp
+              "(\\n -> \\f -> \\x -> f (n f x)) ((\\n -> \\f -> \\x -> f (n f x)) (\\f -> \\x -> x));"
+    where
+      testParser p s = print $ runParser p s
+      testLambda =
+          print $ case runParser Lambda.expr "(\\x -> x x) (\\x -> x)" of
+              Just (exp, _) -> Semantics.eval exp
 
 seqchar = sequence [char '1', char '2', char '3']

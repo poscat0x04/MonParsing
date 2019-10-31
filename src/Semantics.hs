@@ -5,18 +5,19 @@ import           Control.Applicative            ( (<|>) )
 import qualified Parser                        as P
 
 substitute :: Expr -> String -> Expr -> Expr
-substitute (App exp1 exp2) s e = App (substitute exp1 s e) (substitute exp2 s e)
+substitute (App exp1 exp2) s e = eval $ App (substitute exp1 s e) (substitute exp2 s e)
 substitute (Lam s exp1) s' exp2 | s == s'   = error "Variable naming conflict"
-                               | otherwise = Lam s (substitute exp1 s' exp2)
+                                | otherwise = Lam s (substitute exp1 s' exp2)
 substitute (Var s) s' exp | s == s'   = exp
-                         | otherwise = Var s
+                          | otherwise = Var s
 
 eval :: Expr -> Expr
 eval (Let s exp1 exp2) = eval $ substitute exp2 s exp1
 eval (App exp1 exp2  ) = case exp1 of
   Lam s exp1 -> eval $ substitute exp1 s exp2
-  Var s      -> error "Applying a variable"
-  App _ _    -> eval (App (eval exp1) exp2)
+  Var s      -> App (Var s) (eval exp2)
+  App _ _    -> App (eval exp1) (eval exp2)
+eval (Lam s exp) = Lam s (eval exp)
 eval x = x
 
 consume :: P.Parser [Expr]

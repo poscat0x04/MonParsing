@@ -11,8 +11,13 @@ import           Control.Applicative            ( (<|>) )
 data Expr = App Expr Expr
           | Lam String Expr
           | Let String Expr Expr
-          | Var String deriving (Show, Eq)
+          | Var String deriving (Eq)
 
+instance Show Expr where
+  show (App exp1 exp2) = "(" ++ show exp1 ++ " " ++ show exp2 ++ ")"
+  show (Lam s exp) = "\\" ++ s ++ " -> " ++ show exp
+  show (Let s exp1 exp2) = "let " ++ s ++ " = " ++ show exp1 ++ " in " ++ show exp2
+  show (Var s) = s
 
 expr = atom `chainl1` pure App
 
